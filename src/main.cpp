@@ -252,9 +252,14 @@ int main() {
 			}
 			
 			bool too_close = false;
-			bool left_lane_blocked = false;
-			bool right_lane_blocked = false;
+			double my_lane_speed = 999.0d;
+			bool left_lane_occupied = false;
+			double left_lane_speed = 999.0d;
+			
+			bool right_lane_occupied = false;
+			double right_lane_speed = 999.0d;
 			bool keep_lane = false;
+			double target_speed = 0.0d;
 			
 			// Find ref_v to use
 			for (int i = 0; i < sensor_fusion.size();i++)
@@ -274,8 +279,8 @@ int main() {
 					{
 						// Do some logic here, lower reference velocity so we dont crash into the car in front of us,
 						// could also flag to try to change lanes
-						//ref_vel = 29.5; //mph
 						 too_close = true;
+						 my_lane_speed = check_speed;
 					}
 				}
 				
@@ -291,10 +296,8 @@ int main() {
 					//Check s values greater than mine and s gap
 					if ((check_car_s > car_s - 8) && ((check_car_s - car_s) < 30))
 					{
-						// Do some logic here, lower reference velocity so we dont crash into the car in front of us,
-						// could also flag to try to change lanes
-						//ref_vel = 29.5; //mph
-						 left_lane_blocked = true;
+						 left_lane_occupied = true;
+						 left_lane_speed = check_speed;
 					}
 				}
 				
@@ -310,10 +313,8 @@ int main() {
 					//Check s values greater than mine and s gap
 					if ((check_car_s > car_s - 8) && ((check_car_s - car_s) < 30))
 					{
-						// Do some logic here, lower reference velocity so we dont crash into the car in front of us,
-						// could also flag to try to change lanes
-						//ref_vel = 29.5; //mph
-						 right_lane_blocked = true;
+						 right_lane_occupied = true;
+						 right_lane_speed = check_speed;
 					}
 				}
 			}
@@ -321,17 +322,28 @@ int main() {
 			if (too_close)
 			{
 				// Left lane clear to move into
-				if (!left_lane_blocked && lane > 0)
+				if (!left_lane_occupied && lane > 0)
 				{
 					lane--;
 				}
-				else if (!right_lane_blocked && lane < 2)
+				else if (!right_lane_occupied && lane < 2)
 				{
 					lane++;
 				}
-				else
+				else 
 				{
-					keep_lane = true;
+					keep_lane = true; 
+					target_speed = my_lane_speed;
+					// If the left lane is moving faster than my lane but blocked, slow down a bit.
+					if (lane > 0 && left_lane_occupied && left_lane_speed > my_lane_speed)
+					{
+						target_speed = my_lane_speed -5; // Aim to go slower to match the gap
+					}
+					if (lane < 2 && right_lane_occupied && right_lane_speed > my_lane_speed)
+					{
+						target_speed = my_lane_speed -5; // Aim to go slower to match the gap
+					}
+					
 				}
 			}
 			
@@ -432,7 +444,10 @@ int main() {
 			{
 				if (keep_lane)
 				{
-					ref_vel -= .224; // Slow by 1m/s
+					if (ref_vel > target_speed)
+					{
+						ref_vel -= .224; // Slow by 1m/s
+					}
 				}
 				else if (ref_vel < 49.5)
 				{
@@ -459,16 +474,6 @@ int main() {
 				next_y_vals.push_back(y_point);
 			}
 			
-			// Old code
-			//double dist_inc = 0.3;
-			//for(int i = 0; i < 50; i++)
-			//{
-			//	double next_s = car_s + (i+1)*dist_inc;
-			//	double next_d = 6;
-			//	vector<double> xy = getXY(next_s, next_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
-			//	next_x_vals.push_back(xy[0]);
-			//	next_y_vals.push_back(xy[1]);
-			//}
 
 			// END
           	msgJson["next_x"] = next_x_vals;
