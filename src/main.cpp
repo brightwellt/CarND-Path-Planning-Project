@@ -252,6 +252,9 @@ int main() {
 			}
 			
 			bool too_close = false;
+			bool left_lane_blocked = false;
+			bool right_lane_blocked = false;
+			bool keep_lane = false;
 			
 			// Find ref_v to use
 			for (int i = 0; i < sensor_fusion.size();i++)
@@ -276,17 +279,63 @@ int main() {
 					}
 				}
 				
+				// car is in left lane.
+				if (d < (2 + 5 * (lane-1) + 2) && d > (2 + 4 * (lane-1) - 2))
+				{
+					double vx = sensor_fusion[i][3];
+					double vy = sensor_fusion[i][4];
+					double check_speed = sqrt(vx*vx + vy*vy);
+					double check_car_s = sensor_fusion[i][5];
+					
+					check_car_s+=((double)prev_size*.02*check_speed); // If using previous points can project s value out
+					//Check s values greater than mine and s gap
+					if ((check_car_s > car_s - 8) && ((check_car_s - car_s) < 30))
+					{
+						// Do some logic here, lower reference velocity so we dont crash into the car in front of us,
+						// could also flag to try to change lanes
+						//ref_vel = 29.5; //mph
+						 left_lane_blocked = true;
+					}
+				}
+				
+				// car is in right lane.
+				if (d < (2 + 5 * (lane+1) + 2) && d > (2 + 4 * (lane+1) - 2))
+				{
+					double vx = sensor_fusion[i][3];
+					double vy = sensor_fusion[i][4];
+					double check_speed = sqrt(vx*vx + vy*vy);
+					double check_car_s = sensor_fusion[i][5];
+					
+					check_car_s+=((double)prev_size*.02*check_speed); // If using previous points can project s value out
+					//Check s values greater than mine and s gap
+					if ((check_car_s > car_s - 8) && ((check_car_s - car_s) < 30))
+					{
+						// Do some logic here, lower reference velocity so we dont crash into the car in front of us,
+						// could also flag to try to change lanes
+						//ref_vel = 29.5; //mph
+						 right_lane_blocked = true;
+					}
+				}
 			}
 			
 			if (too_close)
 			{
-				ref_vel -= .224; // Slow by 1m/s
-			}
-			else if (ref_vel < 49.5)
-			{
-				ref_vel += .224;
+				// Left lane clear to move into
+				if (!left_lane_blocked && lane > 0)
+				{
+					lane--;
+				}
+				else if (!right_lane_blocked && lane < 2)
+				{
+					lane++;
+				}
+				else
+				{
+					keep_lane = true;
+				}
 			}
 			
+
 			// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
 
 			// Create a list of widely spaced (x,y) waypoints, evenly spaced at 30m
@@ -381,6 +430,15 @@ int main() {
 			// Here we will always output 50 points.
 			for (int i = 1; i <= 50-previous_path_x.size();i++)
 			{
+				if (keep_lane)
+				{
+					ref_vel -= .224; // Slow by 1m/s
+				}
+				else if (ref_vel < 49.5)
+				{
+					ref_vel += .224;
+				}
+				
 				double N = (target_dist/(.02 * ref_vel / 2.24)); //2.24 = mph to m/s.
 				double x_point = x_add_on+(target_x)/N;
 				double y_point = s(x_point);
