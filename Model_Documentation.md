@@ -56,6 +56,7 @@ On tests, this path planner is capable of smoothly driving the car around the hi
 There are no collisions. It can change lanes when it needs to. It does not have excessive acceleration or jerk. It will drive slowly
 if obstructed by traffic.
 
+![Simulator Image](https://github.com/brightwellt/CarND-Path-Planning-Project/blob/master/PathPlanning.PNG)
 
 ## Limitations
 The state machine employed here is very basic. It does not look further into the future than the next set of path planning. It does
